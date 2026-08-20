@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwopBlog - Modern Community Blog</title>
+    <meta name="description" content="SwopBlog is a modern, responsive blog platform to create stories, reply to discussions, and customize your profile.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-viewport">
+        <!-- Main Application Card Canvas matching user wireframe -->
+        <main class="main-canvas" id="mainCanvas">
+            
+            <!-- Header Bar: SwopBlog Branding with Top-Right Profile Picture -->
+            <header class="app-header">
+                <div class="header-brand">
+                    <div class="brand-badge">
+                        <i data-lucide="feather" class="brand-icon"></i>
+                    </div>
+                    <div class="brand-text">
+                        <h1 class="brand-name">SwopBlog</h1>
+                        <span class="brand-subtitle">Community Feed</span>
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <!-- Top Right Profile Picture Widget -->
+                    <div class="profile-widget" id="profileWidget" title="Click to view &amp; change profile picture" role="button" tabindex="0">
+                        <div class="profile-avatar-wrapper">
+                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" 
+                                 alt="User Profile" 
+                                 id="headerAvatarImg" 
+                                 class="header-avatar">
+                            <div class="avatar-edit-badge" title="Change picture">
+                                <i data-lucide="camera"></i>
+                            </div>
+                        </div>
+                        <div class="profile-meta-peek">
+                            <span class="profile-peek-name" id="peekName">Swopnab Karki</span>
+                            <span class="profile-peek-handle" id="peekHandle">@swopnab</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Three-column layout where the center/middle is the primary blog feed -->
+            <div class="canvas-grid-layout">
+                
+                <!-- Left Context Sidebar (User Quick Info & Navigation) -->
+                <aside class="canvas-sidebar-left">
+                    <div class="sidebar-card user-quick-card">
+                        <div class="quick-avatar-container">
+                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" 
+                                 alt="Profile Avatar" 
+                                 id="sidebarAvatarImg" 
+                                 class="sidebar-avatar">
+                        </div>
+                        <h2 class="quick-user-name" id="sidebarName">Swopnab Karki</h2>
+                        <p class="quick-user-handle" id="sidebarHandle">@swopnab</p>
+                        <p class="quick-user-bio" id="sidebarBio">Creator &amp; developer sharing stories and thoughts on SwopBlog.</p>
+                        <button class="btn-change-avatar" id="btnOpenProfileModal">
+                            <i data-lucide="image"></i>
+                            Change Profile Picture
+                        </button>
+                    </div>
+
+                    <div class="sidebar-card nav-card">
+                        <div class="sidebar-nav-item active">
+                            <i data-lucide="layout-grid"></i>
+                            <span>All Posts</span>
+                            <span class="nav-count" id="postsCountBadge">0</span>
+                        </div>
+                        <div class="sidebar-nav-item">
+                            <i data-lucide="flame"></i>
+                            <span>Trending Stories</span>
+                        </div>
+                        <div class="sidebar-nav-item">
+                            <i data-lucide="bookmark"></i>
+                            <span>Saved Posts</span>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Middle Column: The Blog Stage (Create, Delete, Reply) -->
+                <section class="canvas-middle-column" id="blogFeedSection">
+                    
+                    <!-- Create Post Box -->
+                    <div class="create-post-card">
+                        <div class="create-card-header">
+                            <div class="create-avatar-mini">
+                                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" 
+                                     alt="Current user" 
+                                     id="createPostAvatar">
+                            </div>
+                            <span class="create-prompt-text">Create a new blog story</span>
+                        </div>
+
+                        <form id="createPostForm" class="create-post-form">
+                            <div class="form-group">
+                                <input type="text" 
+                                       id="postTitleInput" 
+                                       class="form-input-title" 
+                                       placeholder="Give your story an inspiring title..." 
+                                       required 
+                                       maxlength="120" />
+                            </div>
+
+                            <div class="form-group">
+                                <textarea id="postContentInput" 
+                                          class="form-textarea-content" 
+                                          placeholder="Write your thoughts, stories, questions or insights here..." 
+                                          rows="4" 
+                                          required></textarea>
+                            </div>
+
+                            <div class="create-card-footer">
+                                <div class="tag-selector-wrapper">
+                                    <i data-lucide="tag" class="tag-icon"></i>
+                                    <select id="postTagSelect" class="form-tag-select">
+                                        <option value="General">General</option>
+                                        <option value="Technology">Technology</option>
+                                        <option value="Web Development">Web Development</option>
+                                        <option value="Design &amp; UI">Design &amp; UI</option>
+                                        <option value="Lifestyle &amp; Ideas">Lifestyle &amp; Ideas</option>
+                                    </select>
+                                </div>
+
+                                <button type="submit" class="btn-publish" id="btnPublishPost">
+                                    <i data-lucide="send"></i>
+                                    <span>Publish Post</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Feed Header -->
+                    <div class="feed-header-banner">
+                        <h2 class="feed-title">
+                            <i data-lucide="message-square" class="title-icon"></i>
+                            Latest Feed
+                        </h2>
+                        <span class="feed-status" id="feedStatusText">Showing recent posts</span>
+                    </div>
+
+                    <!-- Posts Container (Dynamic Middle Feed) -->
+                    <div class="posts-stream" id="postsContainer">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </section>
+
+                <!-- Right Column: Topics & Quick Help -->
+                <aside class="canvas-sidebar-right">
+                    <div class="sidebar-card topics-card">
+                        <h4 class="card-mini-title">
+                            <i data-lucide="trending-up"></i>
+                            Trending Tags
+                        </h4>
+                        <div class="tags-cloud">
+                            <span class="topic-pill">#SwopBlog</span>
+                            <span class="topic-pill">#VanillaJS</span>
+                            <span class="topic-pill">#WebDev</span>
+                            <span class="topic-pill">#Design</span>
+                            <span class="topic-pill">#CleanUI</span>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-card instructions-card">
+                        <h4 class="card-mini-title">
+                            <i data-lucide="sparkles"></i>
+                            SwopBlog Guide
+                        </h4>
+                        <ul class="guide-list">
+                            <li><strong>Create:</strong> Write title and content in the middle card to post.</li>
+                            <li><strong>Reply:</strong> Click "Reply" to add comments and join discussions.</li>
+                            <li><strong>Delete:</strong> Delete posts or individual replies anytime.</li>
+                            <li><strong>Profile Pic:</strong> Click the top-right avatar circle to upload your photo or choose presets!</li>
+                        </ul>
+                    </div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <!-- Profile Picture Upload & Customization Modal -->
+    <div class="modal-overlay" id="profileModal" aria-hidden="true">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i data-lucide="user-check" class="modal-title-icon"></i>
+                    <h3>Update Profile Picture</h3>
+                </div>
+                <button class="btn-modal-close" id="btnCloseProfileModal" aria-label="Close modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="avatar-preview-section">
+                    <div class="preview-avatar-circle">
+                        <img src="" alt="Profile Preview" id="modalPreviewImg" class="modal-avatar-preview">
+                    </div>
+                    <div class="preview-instructions">
+                        <p class="instruction-main">Upload a custom photo or choose a preset</p>
+                        <span class="instruction-sub">Supports PNG, JPG, GIF, WebP</span>
+                    </div>
+                </div>
+
+                <!-- Custom Upload Dropzone / File Input -->
+                <div class="upload-dropzone" id="avatarDropzone">
+                    <input type="file" id="avatarFileInput" accept="image/*" class="file-input-hidden">
+                    <i data-lucide="upload-cloud" class="upload-icon"></i>
+                    <p class="dropzone-text"><strong>Click to browse</strong> or drag &amp; drop an image here</p>
+                    <span class="selected-file-name" id="selectedFileName"></span>
+                </div>
+
+                <!-- Preset Avatars -->
+                <div class="preset-section">
+                    <span class="preset-label">Or select a preset avatar:</span>
+                    <div class="preset-avatars-grid" id="presetAvatarsGrid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Display Name & Bio Edit -->
+                <div class="profile-fields-edit">
+                    <div class="form-group">
+                        <label for="editProfileName">Display Name</label>
+                        <input type="text" id="editProfileName" class="form-input" placeholder="Your name">
+                    </div>
+                    <div class="form-group">
+                        <label for="editProfileBio">Bio</label>
+                        <input type="text" id="editProfileBio" class="form-input" placeholder="A short bio about yourself">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btnCancelProfileModal">Cancel</button>
+                <button type="button" class="btn-primary" id="btnSaveProfile">
+                    <i data-lucide="check"></i>
+                    Save Profile
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteConfirmModal" aria-hidden="true">
+        <div class="modal-card modal-card-sm">
+            <div class="modal-header">
+                <div class="modal-title-group text-danger">
+                    <i data-lucide="alert-triangle" class="modal-title-icon text-danger"></i>
+                    <h3>Confirm Deletion</h3>
+                </div>
+                <button class="btn-modal-close" id="btnCloseDeleteModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteModalMessage">Are you sure you want to delete this? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btnCancelDelete">Cancel</button>
+                <button type="button" class="btn-danger" id="btnConfirmDelete">
+                    <i data-lucide="trash-2"></i>
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

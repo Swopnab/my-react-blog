@@ -1,6 +1,7 @@
 {
-  "name": "my-react-blog",
-  "version": "0.1.0",
+  "name": "swopblog",
+  "version": "1.0.0",
+  "description": "SwopBlog - Modern Community Blog built with Vanilla HTML, CSS, and JS",
   "private": true,
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
