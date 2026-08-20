@@ -1,18 +1,18 @@
-// SwopBlog Application Core Logic (Pure Vanilla JS with LocalStorage Persistence)
+// SwopBlog Application Logic (Left Profile Card + Center Feed)
 
 const STORAGE_KEYS = {
-    PROFILE: 'swopblog_profile_v1',
-    POSTS: 'swopblog_posts_v1'
+    PROFILE: 'swopblog_profile_v2',
+    POSTS: 'swopblog_posts_v2'
 };
 
-// Preset Avatars for Instant Selection
+// Preset Avatars for Fast Selection
 const PRESET_AVATARS = [
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80'
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=200&auto=format&fit=crop&q=80'
 ];
 
 // Initial Seed Data
@@ -20,37 +20,37 @@ const DEFAULT_PROFILE = {
     name: 'Swopnab Karki',
     username: '@swopnab',
     bio: 'Creator & developer sharing stories and thoughts on SwopBlog.',
-    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80'
 };
 
 const DEFAULT_POSTS = [
     {
         id: 101,
         title: 'Welcome to SwopBlog!',
-        content: 'SwopBlog is built with clean Vanilla HTML, CSS, and JavaScript. You can easily publish your stories, delete them, and join conversations with nested replies. Check out the top-right profile picture to customize your personal avatar!',
+        content: 'SwopBlog is built with clean Vanilla HTML and CSS. You can easily publish new stories, reply to discussions, and customize your profile photo on the left card.',
         author: 'Swopnab Karki',
-        author_avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        author_avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
         tag: 'General',
-        likes: 12,
+        likes: 18,
         created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
         replies: [
             {
                 id: 201,
                 author: 'Elena Rostova',
-                author_avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-                content: 'Super clean design! Love how snappy creating posts and replies feels in the middle feed.',
+                author_avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
+                content: 'The left profile card layout looks super sleek and intuitive!',
                 created_at: new Date(Date.now() - 3600000 * 2).toISOString()
             }
         ]
     },
     {
         id: 102,
-        title: 'Minimalist Web Design & Fast Interfaces',
-        content: 'Keeping interfaces focused and responsive provides the best user experience. Everything in the center column is laid out for effortless reading, posting, and discussion.',
+        title: 'Minimalist Layouts with Great Spacing',
+        content: 'Placing the author card cleanly on the left and keeping the full feed on the right makes navigation effortless and focused on content.',
         author: 'David Chen',
-        author_avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+        author_avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
         tag: 'Design & UI',
-        likes: 8,
+        likes: 11,
         created_at: new Date(Date.now() - 3600000 * 7).toISOString(),
         replies: []
     }
@@ -64,27 +64,21 @@ let selectedPresetAvatar = null;
 let selectedAvatarDataUrl = null;
 
 // DOM Elements
-const headerAvatarImg = document.getElementById('headerAvatarImg');
-const sidebarAvatarImg = document.getElementById('sidebarAvatarImg');
-const createPostAvatar = document.getElementById('createPostAvatar');
-const peekName = document.getElementById('peekName');
-const peekHandle = document.getElementById('peekHandle');
-const sidebarName = document.getElementById('sidebarName');
-const sidebarHandle = document.getElementById('sidebarHandle');
-const sidebarBio = document.getElementById('sidebarBio');
-const postsCountBadge = document.getElementById('postsCountBadge');
+const userProfileAvatar = document.getElementById('userProfileAvatar');
+const userProfileName = document.getElementById('userProfileName');
+const userProfileHandle = document.getElementById('userProfileHandle');
+const userProfileBio = document.getElementById('userProfileBio');
+const btnOpenProfileModal = document.getElementById('btnOpenProfileModal');
 
 const postsContainer = document.getElementById('postsContainer');
+const postsCountText = document.getElementById('postsCountText');
 const createPostForm = document.getElementById('createPostForm');
 const postTitleInput = document.getElementById('postTitleInput');
 const postContentInput = document.getElementById('postContentInput');
 const postTagSelect = document.getElementById('postTagSelect');
 
-// Modals
+// Profile Modal Elements
 const profileModal = document.getElementById('profileModal');
-const deleteConfirmModal = document.getElementById('deleteConfirmModal');
-const profileWidget = document.getElementById('profileWidget');
-const btnOpenProfileModal = document.getElementById('btnOpenProfileModal');
 const btnCloseProfileModal = document.getElementById('btnCloseProfileModal');
 const btnCancelProfileModal = document.getElementById('btnCancelProfileModal');
 const btnSaveProfile = document.getElementById('btnSaveProfile');
@@ -96,12 +90,14 @@ const avatarDropzone = document.getElementById('avatarDropzone');
 const selectedFileName = document.getElementById('selectedFileName');
 const presetAvatarsGrid = document.getElementById('presetAvatarsGrid');
 
+// Delete Modal Elements
+const deleteConfirmModal = document.getElementById('deleteConfirmModal');
 const btnCloseDeleteModal = document.getElementById('btnCloseDeleteModal');
 const btnCancelDelete = document.getElementById('btnCancelDelete');
 const btnConfirmDelete = document.getElementById('btnConfirmDelete');
 const deleteModalMessage = document.getElementById('deleteModalMessage');
 
-// Initialize
+// Initialize on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
     loadProfile();
     loadPosts();
@@ -116,58 +112,62 @@ function refreshIcons() {
     }
 }
 
-// Event Listeners
+// Setup Event Listeners
 function setupEventListeners() {
-    // Open Profile Modal
-    profileWidget.addEventListener('click', openProfileModal);
-    btnOpenProfileModal.addEventListener('click', openProfileModal);
-    btnCloseProfileModal.addEventListener('click', closeProfileModal);
-    btnCancelProfileModal.addEventListener('click', closeProfileModal);
-    btnSaveProfile.addEventListener('click', handleSaveProfile);
+    // Open / Close Profile Modal
+    if (btnOpenProfileModal) btnOpenProfileModal.addEventListener('click', openProfileModal);
+    if (btnCloseProfileModal) btnCloseProfileModal.addEventListener('click', closeProfileModal);
+    if (btnCancelProfileModal) btnCancelProfileModal.addEventListener('click', closeProfileModal);
+    if (btnSaveProfile) btnSaveProfile.addEventListener('click', handleSaveProfile);
 
-    // Delete Modal
-    btnCloseDeleteModal.addEventListener('click', closeDeleteModal);
-    btnCancelDelete.addEventListener('click', closeDeleteModal);
-    btnConfirmDelete.addEventListener('click', executePendingDelete);
-
-    // Create Post
-    createPostForm.addEventListener('submit', handleCreatePost);
-
-    // Avatar Upload & Drag/Drop
-    avatarDropzone.addEventListener('click', () => avatarFileInput.click());
-    avatarFileInput.addEventListener('change', (e) => {
-        if (e.target.files && e.target.files[0]) {
-            handleAvatarFile(e.target.files[0]);
-        }
-    });
-
-    avatarDropzone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        avatarDropzone.classList.add('drag-over');
-    });
-    avatarDropzone.addEventListener('dragleave', () => {
-        avatarDropzone.classList.remove('drag-over');
-    });
-    avatarDropzone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        avatarDropzone.classList.remove('drag-over');
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleAvatarFile(e.dataTransfer.files[0]);
-        }
-    });
-
-    // Close modal on outer click
-    [profileModal, deleteConfirmModal].forEach(modal => {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('open');
+    // Profile Dropzone / File Picker
+    if (avatarDropzone && avatarFileInput) {
+        avatarDropzone.addEventListener('click', () => avatarFileInput.click());
+        avatarFileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                handleAvatarFile(e.target.files[0]);
             }
         });
+
+        avatarDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            avatarDropzone.classList.add('drag-over');
+        });
+        avatarDropzone.addEventListener('dragleave', () => {
+            avatarDropzone.classList.remove('drag-over');
+        });
+        avatarDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            avatarDropzone.classList.remove('drag-over');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleAvatarFile(e.dataTransfer.files[0]);
+            }
+        });
+    }
+
+    // Create Post
+    if (createPostForm) {
+        createPostForm.addEventListener('submit', handleCreatePost);
+    }
+
+    // Delete Modal
+    if (btnCloseDeleteModal) btnCloseDeleteModal.addEventListener('click', closeDeleteModal);
+    if (btnCancelDelete) btnCancelDelete.addEventListener('click', closeDeleteModal);
+    if (btnConfirmDelete) btnConfirmDelete.addEventListener('click', executePendingDelete);
+
+    // Modal background click
+    [profileModal, deleteConfirmModal].forEach(modal => {
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('open');
+            });
+        }
     });
 }
 
 // Preset Avatars Setup
 function initPresetAvatars() {
+    if (!presetAvatarsGrid) return;
     presetAvatarsGrid.innerHTML = '';
     PRESET_AVATARS.forEach(url => {
         const img = document.createElement('img');
@@ -179,8 +179,8 @@ function initPresetAvatars() {
             img.classList.add('selected');
             selectedPresetAvatar = url;
             selectedAvatarDataUrl = null;
-            selectedFileName.textContent = 'Selected Preset Avatar';
-            modalPreviewImg.src = url;
+            if (selectedFileName) selectedFileName.textContent = 'Selected Preset Avatar';
+            if (modalPreviewImg) modalPreviewImg.src = url;
         });
         presetAvatarsGrid.appendChild(img);
     });
@@ -196,8 +196,8 @@ function handleAvatarFile(file) {
     reader.onload = (e) => {
         selectedAvatarDataUrl = e.target.result;
         selectedPresetAvatar = null;
-        modalPreviewImg.src = selectedAvatarDataUrl;
-        selectedFileName.textContent = `Selected: ${file.name}`;
+        if (modalPreviewImg) modalPreviewImg.src = selectedAvatarDataUrl;
+        if (selectedFileName) selectedFileName.textContent = `Selected: ${file.name}`;
         document.querySelectorAll('.preset-avatar-option').forEach(el => el.classList.remove('selected'));
     };
     reader.readAsDataURL(file);
@@ -226,35 +226,30 @@ function saveProfile() {
 function updateProfileUI() {
     const avatar = appProfile.avatar_url || DEFAULT_PROFILE.avatar_url;
     
-    headerAvatarImg.src = avatar;
-    sidebarAvatarImg.src = avatar;
-    createPostAvatar.src = avatar;
-    modalPreviewImg.src = avatar;
+    if (userProfileAvatar) userProfileAvatar.src = avatar;
+    if (userProfileName) userProfileName.textContent = appProfile.name || DEFAULT_PROFILE.name;
+    if (userProfileHandle) userProfileHandle.textContent = appProfile.username || DEFAULT_PROFILE.username;
+    if (userProfileBio) userProfileBio.textContent = appProfile.bio || DEFAULT_PROFILE.bio;
 
-    peekName.textContent = appProfile.name || DEFAULT_PROFILE.name;
-    peekHandle.textContent = appProfile.username || DEFAULT_PROFILE.username;
-    sidebarName.textContent = appProfile.name || DEFAULT_PROFILE.name;
-    sidebarHandle.textContent = appProfile.username || DEFAULT_PROFILE.username;
-    sidebarBio.textContent = appProfile.bio || DEFAULT_PROFILE.bio;
-
-    editProfileName.value = appProfile.name || '';
-    editProfileBio.value = appProfile.bio || '';
+    if (editProfileName) editProfileName.value = appProfile.name || '';
+    if (editProfileBio) editProfileBio.value = appProfile.bio || '';
+    if (modalPreviewImg) modalPreviewImg.src = avatar;
 }
 
 function openProfileModal() {
-    editProfileName.value = appProfile.name || '';
-    editProfileBio.value = appProfile.bio || '';
-    modalPreviewImg.src = appProfile.avatar_url || DEFAULT_PROFILE.avatar_url;
+    if (editProfileName) editProfileName.value = appProfile.name || '';
+    if (editProfileBio) editProfileBio.value = appProfile.bio || '';
+    if (modalPreviewImg) modalPreviewImg.src = appProfile.avatar_url || DEFAULT_PROFILE.avatar_url;
     selectedAvatarDataUrl = null;
     selectedPresetAvatar = null;
-    selectedFileName.textContent = '';
+    if (selectedFileName) selectedFileName.textContent = '';
     document.querySelectorAll('.preset-avatar-option').forEach(el => el.classList.remove('selected'));
-    profileModal.classList.add('open');
+    if (profileModal) profileModal.classList.add('open');
     refreshIcons();
 }
 
 function closeProfileModal() {
-    profileModal.classList.remove('open');
+    if (profileModal) profileModal.classList.remove('open');
 }
 
 function handleSaveProfile() {
@@ -273,7 +268,7 @@ function handleSaveProfile() {
     saveProfile();
     updateProfileUI();
 
-    // Update avatar on any posts/replies authored by the current user
+    // Update avatar on posts/replies authored by the current user
     appPosts.forEach(p => {
         if (p.author === appProfile.name) {
             p.author_avatar = appProfile.avatar_url;
@@ -290,7 +285,7 @@ function handleSaveProfile() {
     renderPosts();
 
     closeProfileModal();
-    showToast('Profile & avatar updated successfully!', 'success');
+    showToast('Profile picture & info updated!', 'success');
 }
 
 // Posts Storage & Management
@@ -314,14 +309,17 @@ function savePosts() {
 }
 
 function renderPosts() {
-    postsCountBadge.textContent = appPosts.length;
+    if (postsCountText) {
+        const count = appPosts.length;
+        postsCountText.textContent = `${count} ${count === 1 ? 'story' : 'stories'}`;
+    }
 
     if (!appPosts || appPosts.length === 0) {
         postsContainer.innerHTML = `
             <div class="empty-feed">
                 <i data-lucide="file-text" class="empty-icon"></i>
-                <h3 class="empty-title">No Blog Posts Yet</h3>
-                <p>Be the first to share a story using the form above!</p>
+                <h3 class="empty-title">No Stories Yet</h3>
+                <p>Be the first to publish a story using the form above!</p>
             </div>
         `;
         refreshIcons();
@@ -399,7 +397,7 @@ function createPostCardElement(post) {
             </button>
         </div>
 
-        <!-- Inline Replies Section in Middle Column -->
+        <!-- Inline Replies Section -->
         <div class="post-replies-section" id="replies-section-${post.id}" style="display: ${repliesCount > 0 ? 'flex' : 'none'};">
             <div class="replies-list" id="replies-list-${post.id}">
                 ${repliesHtml}
@@ -423,7 +421,7 @@ function createPostCardElement(post) {
     return card;
 }
 
-// Toggle replies section
+// Toggle replies visibility
 window.toggleRepliesSection = function(postId) {
     const section = document.getElementById(`replies-section-${postId}`);
     if (section) {
@@ -445,8 +443,8 @@ window.handleLikePost = function(postId, buttonEl) {
         const countSpan = buttonEl.querySelector('.like-count');
         if (countSpan) countSpan.textContent = post.likes;
         
-        buttonEl.style.transform = 'scale(1.2)';
-        setTimeout(() => buttonEl.style.transform = 'none', 180);
+        buttonEl.style.transform = 'scale(1.15)';
+        setTimeout(() => buttonEl.style.transform = 'none', 150);
     }
 };
 
@@ -518,7 +516,7 @@ window.handleAddReply = function(e, postId) {
 // Delete Prompts
 window.promptDeletePost = function(postId) {
     pendingDeleteAction = { type: 'post', postId };
-    deleteModalMessage.textContent = 'Are you sure you want to delete this blog post and all its replies? This action cannot be undone.';
+    deleteModalMessage.textContent = 'Are you sure you want to delete this blog post and all its replies?';
     deleteConfirmModal.classList.add('open');
     refreshIcons();
 };
@@ -596,9 +594,9 @@ function showToast(message, type = 'info') {
         container.appendChild(toast);
         setTimeout(() => {
             toast.style.opacity = '0';
-            toast.style.transform = 'translateY(10px)';
-            toast.style.transition = 'all 0.25s ease';
-            setTimeout(() => toast.remove(), 250);
-        }, 3200);
+            toast.style.transform = 'translateY(8px)';
+            toast.style.transition = 'all 0.2s ease';
+            setTimeout(() => toast.remove(), 200);
+        }, 3000);
     }
 }
