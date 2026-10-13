@@ -1,70 +1,25 @@
-# Getting Started with Create React App
+# SwopBlog
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A browser-local blog demo built with vanilla HTML, CSS and JavaScript: publish/delete stories, reply, like, and customize a profile/avatar. Posts and replies belong to the current browser; they are not shared with other visitors. Seeded example authors are fictional demo data. The historical repository name does not describe the current implementation.
 
-## Available Scripts
+## One app, one build
 
-In the project directory, you can run:
+The root `index.html`, `app.js`, and `style.css` are the canonical app. The unused React/CRA placeholder implementation and dependencies have been removed so local preview and GitHub Pages serve the same UI.
 
-### `npm start`
+```sh
+npm ci
+npx playwright install chromium --only-shell
+npm start
+npm test
+npm run build
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Open http://127.0.0.1:8000. Python 3 serves the app; Node 24 LTS runs tests/build. `dist-site` contains only public app files and is the Pages deployment artifact. Playwright is free and development-only. No runtime package installation is required by the browser.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Persistence and validation
 
-### `npm test`
+The existing `swopblog_profile_v2` and `swopblog_posts_v2` keys are preserved. Corrupt or structurally invalid data falls back to the demo state. Storage failures warn and keep the tab usable; unsaved changes may be lost on reload. User text renders literally, including markup-looking content. Images/fonts/icons may request external resources; core CRUD still works when those requests fail.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+The CI browser suite checks profile edits, stories, replies, likes, deletion, reload persistence, literal HTML, blocked/corrupt storage and 390px/768px/1440px layouts with external requests disabled. It also builds the same public app deployed on Pages.
 
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+A shared multi-user blog would require a backend, server-side authentication/authorization, moderation and migrations. This cleanup intentionally keeps the existing local demo honest rather than presenting localStorage as a production community service.

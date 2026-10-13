@@ -205,10 +205,13 @@ function handleAvatarFile(file) {
 
 // Profile Storage & Updates
 function loadProfile() {
-    const stored = localStorage.getItem(STORAGE_KEYS.PROFILE);
+    const stored = readStorage(STORAGE_KEYS.PROFILE);
     if (stored) {
         try {
-            appProfile = JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid profile');
+            appProfile = {...DEFAULT_PROFILE};
+            for (const key of ['name','username','bio','avatar_url']) if (typeof parsed[key] === 'string') appProfile[key] = parsed[key];
         } catch (e) {
             appProfile = { ...DEFAULT_PROFILE };
         }
@@ -220,7 +223,7 @@ function loadProfile() {
 }
 
 function saveProfile() {
-    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(appProfile));
+    writeStorage(STORAGE_KEYS.PROFILE, appProfile);
 }
 
 function updateProfileUI() {
@@ -290,10 +293,12 @@ function handleSaveProfile() {
 
 // Posts Storage & Management
 function loadPosts() {
-    const stored = localStorage.getItem(STORAGE_KEYS.POSTS);
+    const stored = readStorage(STORAGE_KEYS.POSTS);
     if (stored) {
         try {
-            appPosts = JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            if (!Array.isArray(parsed) || !parsed.every(validPost)) throw new Error('Invalid posts');
+            appPosts = parsed;
         } catch (e) {
             appPosts = [...DEFAULT_POSTS];
         }
@@ -305,7 +310,7 @@ function loadPosts() {
 }
 
 function savePosts() {
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(appPosts));
+    writeStorage(STORAGE_KEYS.POSTS, appPosts);
 }
 
 function renderPosts() {
@@ -557,11 +562,23 @@ function executePendingDelete() {
 }
 
 // Helpers
+function readStorage(key) {
+    try { return localStorage.getItem(key); }
+    catch { showToast('Browser storage is unavailable. Changes last only in this tab.', 'info'); return null; }
+}
+function writeStorage(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); }
+    catch { showToast('Could not save. Keep this tab open; changes may be lost on reload.', 'danger'); }
+}
+function validPost(post) {
+    const validReply = reply => reply && Number.isSafeInteger(reply.id) && ['content','author','created_at'].every(key=>typeof reply[key]==='string') && (!reply.author_avatar || typeof reply.author_avatar==='string');
+    return post && Number.isSafeInteger(post.id) && ['title','content','author','created_at'].every(key=>typeof post[key]==='string') && (!post.tag || typeof post.tag==='string') && (!post.author_avatar || typeof post.author_avatar==='string') && Number.isSafeInteger(post.likes ?? 0) && (!post.replies || Array.isArray(post.replies) && post.replies.every(validReply));
+}
 function formatTimestamp(isoStr) {
     if (!isoStr) return 'Just now';
     try {
         const date = new Date(isoStr);
-        if (isNaN(date.getTime())) return isoStr;
+        if (isNaN(date.getTime())) return 'Unknown date';
         const now = new Date();
         const diffSec = Math.floor((now - date) / 1000);
 
@@ -570,7 +587,7 @@ function formatTimestamp(isoStr) {
         if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
         return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     } catch (e) {
-        return isoStr;
+        return 'Unknown date';
     }
 }
 
