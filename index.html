@@ -10,10 +10,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="style.css">
+    <script src="icons.js" defer></script>
+    <link rel="stylesheet" href="style.css"><script src="config.js"></script>
 </head>
 <body>
+    <header class="blog-topbar"><a href="./" class="blog-brand">SwopBlog<span> / stories &amp; conversations</span></a><div class="account-actions"><span id="appModeBadge">Browser demo</span><button id="signInButton" class="btn-primary" hidden>Sign in</button><button id="accountButton" class="btn-secondary" hidden>Account</button><button id="signOutButton" class="btn-secondary" hidden>Sign out</button></div></header><p class="mode-notice" id="modeNotice">Browser-only demo. Stories stay in this browser. Run the Node app locally for shared posts and JWT accounts.</p>
     <div class="app-layout">
         <!-- Left Side Profile Card (matches user image) -->
         <aside class="sidebar-left">
@@ -76,6 +77,7 @@
                             </select>
                         </div>
 
+                        <label class="draft-choice" id="draftChoice" hidden><input type="checkbox" id="saveAsDraft"> Save as draft</label><button id="cancelStoryEdit" class="btn-secondary" type="button" hidden>Cancel edit</button>
                         <button type="submit" class="btn-publish" id="btnPublishPost">
                             <i data-lucide="send"></i>
                             <span>Publish Post</span>
@@ -94,21 +96,22 @@
                     <span class="feed-count" id="postsCountText">Loading stories...</span>
                 </div>
 
+                <div class="feed-filters" id="sharedFilters" hidden><label class="sr-only" for="feedSearch">Search stories</label><input type="search" id="feedSearch" placeholder="Search stories…" maxlength="200"><label class="sr-only" for="feedCategory">Category</label><select id="feedCategory"><option value="">All categories</option><option>General</option><option>Technology</option><option>Web Development</option><option>Design &amp; UI</option><option>Lifestyle &amp; Ideas</option></select><label class="sr-only" for="feedScope">Feed</label><select id="feedScope"><option value="public">Everyone</option><option value="mine">My stories</option><option value="drafts">My drafts</option></select><button class="btn-secondary" id="refreshFeed">Refresh</button></div>
                 <!-- Posts Container (Dynamic Feed) -->
                 <div class="posts-stream" id="postsContainer">
                     <!-- Populated by JavaScript -->
-                </div>
+                </div><button class="btn-secondary load-more" id="loadMorePosts" hidden>Load more stories</button>
             </section>
         </main>
     </div>
 
     <!-- Profile Picture Upload & Customization Modal -->
-    <div class="modal-overlay" id="profileModal" aria-hidden="true">
+    <dialog class="modal-overlay" id="profileModal" aria-label="Edit profile">
         <div class="modal-card">
             <div class="modal-header">
                 <div class="modal-title-group">
                     <i data-lucide="user-check" class="modal-title-icon"></i>
-                    <h3>Update Profile Picture</h3>
+                    <h3>Edit your profile</h3>
                 </div>
                 <button class="btn-modal-close" id="btnCloseProfileModal" aria-label="Close modal">
                     <i data-lucide="x"></i>
@@ -146,11 +149,11 @@
                 <div class="profile-fields-edit">
                     <div class="form-group">
                         <label for="editProfileName">Display Name</label>
-                        <input type="text" id="editProfileName" class="form-input" placeholder="Your name">
+                        <input type="text" id="editProfileName" maxlength="80" class="form-input" placeholder="Your name">
                     </div>
                     <div class="form-group">
                         <label for="editProfileBio">Bio</label>
-                        <input type="text" id="editProfileBio" class="form-input" placeholder="A short bio about yourself">
+                        <input type="text" id="editProfileBio" maxlength="500" class="form-input" placeholder="A short bio about yourself">
                     </div>
                 </div>
             </div>
@@ -163,10 +166,10 @@
                 </button>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- Delete Confirmation Modal -->
-    <div class="modal-overlay" id="deleteConfirmModal" aria-hidden="true">
+    <dialog class="modal-overlay" id="deleteConfirmModal" aria-label="Confirm deletion">
         <div class="modal-card modal-card-sm">
             <div class="modal-header">
                 <div class="modal-title-group text-danger">
@@ -188,11 +191,13 @@
                 </button>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- Toast Notifications Container -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="app.js"></script>
+    <dialog id="authDialog" class="account-dialog" aria-labelledby="authTitle"><h2 id="authTitle">Welcome back.</h2><p id="authDescription">Sign in to write, reply, and like stories.</p><form id="authForm"><label id="registerNameLabel" hidden>Display name<input id="authName" maxlength="80" autocomplete="name"></label><label>Email<input id="authEmail" type="email" maxlength="254" required autocomplete="email"></label><label>Password<input id="authPassword" type="password" minlength="8" maxlength="128" required autocomplete="current-password"></label><p class="inline-error" id="authError" role="alert" hidden></p><div class="dialog-buttons"><button type="button" class="btn-secondary" id="closeAuth">Cancel</button><button type="submit" class="btn-primary" id="submitAuth">Sign in</button></div></form><button class="auth-switch" id="toggleAuthMode">New here? Create an account</button></dialog>
+<dialog id="accountDialog" class="account-dialog" aria-labelledby="accountTitle"><h2 id="accountTitle">Your account</h2><p id="accountEmail"></p><h3>Active sessions</h3><div id="sessionList"></div><button class="btn-secondary" id="signOutAll">Sign out on all devices</button><h3>Change password</h3><form id="passwordForm"><label>Current password<input id="currentPassword" type="password" maxlength="128" autocomplete="current-password" required></label><label>New password<input id="newPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label><button class="btn-primary" type="submit">Change password &amp; sign out</button></form><button class="btn-secondary" id="closeAccount">Close</button></dialog>
+<script src="auth-client.js"></script><script src="app.js"></script><script src="shared.js"></script>
 </body>
 </html>

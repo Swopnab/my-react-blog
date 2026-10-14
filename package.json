@@ -1,42 +1,23 @@
 {
-  "name": "swopblog",
-  "version": "1.0.0",
-  "description": "SwopBlog - Modern Community Blog built with Vanilla HTML, CSS, and JS",
+  "name": "my-react-blog",
   "private": true,
-  "dependencies": {
-    "@testing-library/dom": "^10.4.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.2.0",
-    "@testing-library/user-event": "^13.5.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router": "^7.4.0",
-    "react-router-dom": "^7.4.0",
-    "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
-  },
+  "type": "commonjs",
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "test": "node --test api/tests/*.test.js && node tests/browser.cjs && node tests/shared-browser.cjs",
+    "start": "node api/server.js",
+    "build": "node scripts/build.cjs",
+    "demo": "python3 -m http.server 8000 --bind 127.0.0.1",
+    "role": "node api/role.js"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+  "devDependencies": {
+    "playwright": "^1.63.0"
   },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "description": "Shared blogging app with JWT sessions, role-based moderation and SQLite persistence",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "jose": "^5.2.0"
   }
 }

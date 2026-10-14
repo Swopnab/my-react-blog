@@ -1,3 +1,4 @@
+const SHARED = window.SWOPBLOG?.mode === "shared";
 // SwopBlog Application Logic (Left Profile Card + Center Feed)
 
 const STORAGE_KEYS = {
@@ -99,6 +100,7 @@ const deleteModalMessage = document.getElementById('deleteModalMessage');
 
 // Initialize on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
+    if (SHARED) { initSharedBlog(); return; }
     loadProfile();
     loadPosts();
     initPresetAvatars();
@@ -159,7 +161,7 @@ function setupEventListeners() {
     [profileModal, deleteConfirmModal].forEach(modal => {
         if (modal) {
             modal.addEventListener('click', (e) => {
-                if (e.target === modal) modal.classList.remove('open');
+                if (e.target === modal) modal.close();
             });
         }
     });
@@ -187,8 +189,8 @@ function initPresetAvatars() {
 }
 
 function handleAvatarFile(file) {
-    if (!file.type.startsWith('image/')) {
-        showToast('Please select a valid image file', 'danger');
+    if (!['image/png','image/jpeg','image/gif','image/webp'].includes(file.type) || file.size > 150*1024) {
+        showToast('Choose a PNG, JPEG, GIF or WebP image under 150 KB', 'danger');
         return;
     }
 
@@ -205,10 +207,13 @@ function handleAvatarFile(file) {
 
 // Profile Storage & Updates
 function loadProfile() {
-    const stored = localStorage.getItem(STORAGE_KEYS.PROFILE);
+    const stored = readStorage(STORAGE_KEYS.PROFILE);
     if (stored) {
         try {
-            appProfile = JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid profile');
+            appProfile = {...DEFAULT_PROFILE};
+            for (const key of ['name','username','bio','avatar_url']) if (typeof parsed[key] === 'string') appProfile[key] = parsed[key];
         } catch (e) {
             appProfile = { ...DEFAULT_PROFILE };
         }
@@ -220,7 +225,7 @@ function loadProfile() {
 }
 
 function saveProfile() {
-    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(appProfile));
+    writeStorage(STORAGE_KEYS.PROFILE, appProfile);
 }
 
 function updateProfileUI() {
@@ -237,6 +242,7 @@ function updateProfileUI() {
 }
 
 function openProfileModal() {
+    profileModal.querySelector('.modal-feedback')?.remove();
     if (editProfileName) editProfileName.value = appProfile.name || '';
     if (editProfileBio) editProfileBio.value = appProfile.bio || '';
     if (modalPreviewImg) modalPreviewImg.src = appProfile.avatar_url || DEFAULT_PROFILE.avatar_url;
@@ -244,12 +250,12 @@ function openProfileModal() {
     selectedPresetAvatar = null;
     if (selectedFileName) selectedFileName.textContent = '';
     document.querySelectorAll('.preset-avatar-option').forEach(el => el.classList.remove('selected'));
-    if (profileModal) profileModal.classList.add('open');
+    if (profileModal) profileModal.showModal();
     refreshIcons();
 }
 
 function closeProfileModal() {
-    if (profileModal) profileModal.classList.remove('open');
+    if (profileModal) profileModal.close();
 }
 
 function handleSaveProfile() {
@@ -290,10 +296,12 @@ function handleSaveProfile() {
 
 // Posts Storage & Management
 function loadPosts() {
-    const stored = localStorage.getItem(STORAGE_KEYS.POSTS);
+    const stored = readStorage(STORAGE_KEYS.POSTS);
     if (stored) {
         try {
-            appPosts = JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            if (!Array.isArray(parsed) || !parsed.every(validPost)) throw new Error('Invalid posts');
+            appPosts = parsed;
         } catch (e) {
             appPosts = [...DEFAULT_POSTS];
         }
@@ -305,7 +313,7 @@ function loadPosts() {
 }
 
 function savePosts() {
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(appPosts));
+    writeStorage(STORAGE_KEYS.POSTS, appPosts);
 }
 
 function renderPosts() {
@@ -341,22 +349,22 @@ function createPostCardElement(post) {
     card.id = `post-${post.id}`;
 
     const formattedTime = formatTimestamp(post.created_at);
-    const authorAvatar = post.author_avatar || DEFAULT_PROFILE.avatar_url;
+    const authorAvatar = post.author_avatar || (SHARED ? 'avatar.svg' : DEFAULT_PROFILE.avatar_url);
     const replies = post.replies || [];
-    const repliesCount = replies.length;
+    const repliesCount = post.comments_count ?? replies.length;
 
-    const repliesHtml = repliesCount > 0 ? replies.map(reply => `
+    const repliesHtml = replies.length > 0 ? replies.map(reply => `
         <div class="reply-item" id="reply-${reply.id}">
-            <img src="${escapeHtml(reply.author_avatar || DEFAULT_PROFILE.avatar_url)}" alt="${escapeHtml(reply.author)}" class="reply-avatar">
+            <img src="${escapeHtml(reply.author_avatar || (SHARED ? 'avatar.svg' : DEFAULT_PROFILE.avatar_url))}" alt="${escapeHtml(reply.author)}" class="reply-avatar">
             <div class="reply-body">
                 <div class="reply-header">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span class="reply-author">${escapeHtml(reply.author)}</span>
                         <span class="reply-time">${formatTimestamp(reply.created_at)}</span>
                     </div>
-                    <button class="btn-delete-reply" onclick="promptDeleteReply(${post.id}, ${reply.id})" title="Delete Reply">
+                    ${!SHARED || reply.can_delete ? `<button class="btn-delete-reply" onclick="promptDeleteReply(${post.id}, ${reply.id})" title="Delete Reply">
                         <i data-lucide="trash"></i>
-                    </button>
+                    </button>` : ''}
                 </div>
                 <p class="reply-content">${escapeHtml(reply.content)}</p>
             </div>
@@ -372,14 +380,14 @@ function createPostCardElement(post) {
                     <div class="post-meta-sub">
                         <span>${formattedTime}</span>
                         <span>•</span>
-                        <span class="post-tag-badge">${escapeHtml(post.tag || 'General')}</span>
+                        <span class="post-tag-badge">${escapeHtml(post.tag || 'General')}${post.status === 'draft' ? ' · Draft' : ''}</span>
                     </div>
                 </div>
             </div>
-            <button class="btn-delete-post" onclick="promptDeletePost(${post.id})" title="Delete Post">
+            <div class="story-management">${SHARED && post.can_edit ? `<button class="btn-delete-post" onclick="editSharedPost(${post.id})" title="Edit story">Edit</button>` : ''}${!SHARED || post.can_delete ? `<button class="btn-delete-post" onclick="promptDeletePost(${post.id})" title="Delete Post">
                 <i data-lucide="trash-2"></i>
                 <span>Delete</span>
-            </button>
+            </button>` : ''}</div>
         </div>
 
         <h3 class="post-title">${escapeHtml(post.title)}</h3>
@@ -391,14 +399,14 @@ function createPostCardElement(post) {
                 <span>Reply (${repliesCount})</span>
             </button>
 
-            <button class="btn-action-pill btn-like" onclick="handleLikePost(${post.id}, this)">
+            <button class="btn-action-pill btn-like${post.liked ? ' liked' : ''}" aria-label="${post.liked ? 'Unlike' : 'Like'} story" aria-pressed="${Boolean(post.liked)}" ${SHARED && post.status === 'draft' ? 'disabled' : ''} onclick="handleLikePost(${post.id}, this)">
                 <i data-lucide="heart"></i>
                 <span class="like-count">${post.likes || 0}</span>
             </button>
         </div>
 
         <!-- Inline Replies Section -->
-        <div class="post-replies-section" id="replies-section-${post.id}" style="display: ${repliesCount > 0 ? 'flex' : 'none'};">
+        <div class="post-replies-section" id="replies-section-${post.id}" style="display: ${!SHARED && repliesCount > 0 ? 'flex' : 'none'};">
             <div class="replies-list" id="replies-list-${post.id}">
                 ${repliesHtml}
             </div>
@@ -409,8 +417,8 @@ function createPostCardElement(post) {
                        id="reply-input-${post.id}" 
                        placeholder="Write a reply to this post..." 
                        required 
-                       maxlength="500">
-                <button type="submit" class="btn-send-reply">
+                       maxlength="500" ${SHARED && post.status === 'draft' ? 'disabled' : ''}>
+                <button type="submit" class="btn-send-reply" ${SHARED && post.status === 'draft' ? 'disabled' : ''}>
                     <i data-lucide="corner-down-left"></i>
                     <span>Reply</span>
                 </button>
@@ -515,21 +523,22 @@ window.handleAddReply = function(e, postId) {
 
 // Delete Prompts
 window.promptDeletePost = function(postId) {
+    deleteConfirmModal.querySelector('.modal-feedback')?.remove();
     pendingDeleteAction = { type: 'post', postId };
     deleteModalMessage.textContent = 'Are you sure you want to delete this blog post and all its replies?';
-    deleteConfirmModal.classList.add('open');
+    deleteConfirmModal.showModal();
     refreshIcons();
 };
 
 window.promptDeleteReply = function(postId, replyId) {
     pendingDeleteAction = { type: 'reply', postId, replyId };
     deleteModalMessage.textContent = 'Are you sure you want to delete this reply?';
-    deleteConfirmModal.classList.add('open');
+    deleteConfirmModal.showModal();
     refreshIcons();
 };
 
 function closeDeleteModal() {
-    deleteConfirmModal.classList.remove('open');
+    deleteConfirmModal.close();
     pendingDeleteAction = null;
 }
 
@@ -557,11 +566,23 @@ function executePendingDelete() {
 }
 
 // Helpers
+function readStorage(key) {
+    try { return localStorage.getItem(key); }
+    catch { showToast('Browser storage is unavailable. Changes last only in this tab.', 'info'); return null; }
+}
+function writeStorage(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); }
+    catch { showToast('Could not save. Keep this tab open; changes may be lost on reload.', 'danger'); }
+}
+function validPost(post) {
+    const validReply = reply => reply && Number.isSafeInteger(reply.id) && ['content','author','created_at'].every(key=>typeof reply[key]==='string') && (!reply.author_avatar || typeof reply.author_avatar==='string');
+    return post && Number.isSafeInteger(post.id) && ['title','content','author','created_at'].every(key=>typeof post[key]==='string') && (!post.tag || typeof post.tag==='string') && (!post.author_avatar || typeof post.author_avatar==='string') && Number.isSafeInteger(post.likes ?? 0) && (!post.replies || Array.isArray(post.replies) && post.replies.every(validReply));
+}
 function formatTimestamp(isoStr) {
     if (!isoStr) return 'Just now';
     try {
         const date = new Date(isoStr);
-        if (isNaN(date.getTime())) return isoStr;
+        if (isNaN(date.getTime())) return 'Unknown date';
         const now = new Date();
         const diffSec = Math.floor((now - date) / 1000);
 
@@ -570,7 +591,7 @@ function formatTimestamp(isoStr) {
         if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
         return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     } catch (e) {
-        return isoStr;
+        return 'Unknown date';
     }
 }
 
@@ -589,6 +610,8 @@ function showToast(message, type = 'info') {
     toast.className = `toast toast-${type}`;
     toast.textContent = message;
     
+    const dialog = document.querySelector('dialog[open]');
+    if (dialog) { let feedback = dialog.querySelector('.modal-feedback'); if (!feedback) { feedback = document.createElement('p'); feedback.className = 'modal-feedback'; feedback.setAttribute('role', 'alert'); dialog.append(feedback); } feedback.textContent = message; return; }
     const container = document.getElementById('toastContainer');
     if (container) {
         container.appendChild(toast);

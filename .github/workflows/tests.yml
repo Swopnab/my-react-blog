@@ -1,0 +1,23 @@
+name: Browser regression tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --only-shell --with-deps
+      - run: npm test
+      - run: npm run build
+
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev
+      - name: Verify no private backend files are published
+        run: |
+          node -e "const f=require('fs'); const files=f.readdirSync('dist-site'); if(files.some(n=>/api|sqlite|secret|data/.test(n))) process.exit(1)"

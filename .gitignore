@@ -21,3 +21,12 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+/node_modules/
+/dist-site/
+/test-results/
+
+# Private backend database, JWT signing key and runtime settings
+/.data/
+/api/.dev.vars
+*.sqlite*
