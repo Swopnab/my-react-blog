@@ -1,0 +1,338 @@
+// Authentication service - handles password hashing, JWT generation, token management
+// Vanilla JavaScript version
+
+import { SignJWT, jwtVerify } from 'jose';
+import { config, parseDuration, addSeconds, formatDateForDB } from '../config.js';
+import { generateSecureToken, hashToken } from '../utils/crypto.js';
+import { UnauthorizedError } from '../utils/errors.js';
+
+export class AuthService {
+    accessSecret() {
+        const secret = this.env.JWT_ACCESS_SECRET;
+        if (typeof secret !== 'string' || secret.length < 32 || secret.startsWith('your-super-secret')) {
+            throw new Error('Set a random JWT_ACCESS_SECRET of at least 32 characters');
+        }
+        return new TextEncoder().encode(secret);
+    }
+
+    /**
+     * @param {Object} env - Cloudflare environment bindings
+     * @param {D1Database} db - D1 database instance
+     */
+    constructor(env, db) {
+        this.env = env;
+        this.db = db;
+    }
+
+    /**
+     * Hash password using Web Crypto API (PBKDF2)
+     * @param {string} password - Plain text password
+     * @returns {Promise<string>} Hashed password
+     */
+    async hashPassword(password) {
+        const encoder = new TextEncoder();
+        const passwordBytes = encoder.encode(password);
+
+        // Generate random salt
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+
+        // Derive key using PBKDF2 (Workers-friendly)
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            passwordBytes,
+            'PBKDF2',
+            false,
+            ['deriveBits']
+        );
+
+        const derivedBits = await crypto.subtle.deriveBits(
+            {
+                name: 'PBKDF2',
+                salt: salt,
+                iterations: 100000,
+                hash: 'SHA-256'
+            },
+            keyMaterial,
+            256
+        );
+
+        // Combine salt + hash
+        const hashArray = new Uint8Array(derivedBits);
+        const combined = new Uint8Array(salt.length + hashArray.length);
+        combined.set(salt);
+        combined.set(hashArray, salt.length);
+
+        // Return as base64
+        return btoa(String.fromCharCode(...combined));
+    }
+
+    /**
+     * Verify password against hash
+     * @param {string} password - Plain text password
+     * @param {string} hash - Hashed password
+     * @returns {Promise<boolean>} True if password matches
+     */
+    async verifyPassword(password, hash) {
+        try {
+            const encoder = new TextEncoder();
+            const passwordBytes = encoder.encode(password);
+
+            // Decode the hash
+            const combined = Uint8Array.from(atob(hash), c => c.charCodeAt(0));
+            const salt = combined.slice(0, 16);
+            const originalHash = combined.slice(16);
+
+            // Derive key with same parameters
+            const keyMaterial = await crypto.subtle.importKey(
+                'raw',
+                passwordBytes,
+                'PBKDF2',
+                false,
+                ['deriveBits']
+            );
+
+            const derivedBits = await crypto.subtle.deriveBits(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                keyMaterial,
+                256
+            );
+
+            const newHash = new Uint8Array(derivedBits);
+
+            // Constant-time comparison
+            if (newHash.length !== originalHash.length) return false;
+
+            let diff = 0;
+            for (let i = 0; i < newHash.length; i++) {
+                diff |= newHash[i] ^ originalHash[i];
+            }
+
+            return diff === 0;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Generate access token (short-lived)
+     * @param {Object} user - User object with roles and permissions
+     * @returns {Promise<string>} JSON Web Token
+     */
+    async generateAccessToken(user, sessionId) {
+        if (!sessionId) throw new Error("A session is required for access tokens");
+        const payload = {
+            sub: String(user.id),
+            sid: sessionId,
+            email: user.email,
+            roles: user.roles.map(r => r.name),
+            permissions: user.permissions.map(p => p.name),
+            type: 'access',
+        };
+
+        const secret = this.accessSecret();
+        const expiry = parseDuration(this.env.ACCESS_TOKEN_EXPIRY || '15m');
+
+        return new SignJWT(payload)
+            .setProtectedHeader({ alg: 'HS256' }).setIssuer('swopblog').setAudience('swopblog-web')
+            .setIssuedAt()
+            .setExpirationTime(Math.floor(Date.now() / 1000) + expiry)
+            .sign(secret);
+    }
+
+    /**
+     * Generate refresh token (long-lived)
+     * @param {number} userId - User ID
+     * @param {string} sessionId - Session ID
+     * @returns {Promise<string>} Refresh token
+     */
+    async generateRefreshToken(userId, sessionId) {
+        const token = generateSecureToken(32);
+        const tokenHash = await hashToken(token);
+
+        const expiry = parseDuration(this.env.REFRESH_TOKEN_EXPIRY || '7d');
+        const expiresAt = addSeconds(expiry);
+
+        // Store hashed token in database
+        const stored = await this.db
+            .prepare(
+                `INSERT INTO refresh_tokens (session_id, token_hash, expires_at)
+                 SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ?)`
+            )
+            .bind(sessionId, tokenHash, formatDateForDB(expiresAt), sessionId, userId)
+            .run();
+        if (stored.meta.changes !== 1) throw new UnauthorizedError('Session revoked during token rotation');
+
+        // Return the raw token to the client
+        return token;
+    }
+
+    /**
+     * Verify access token
+     * @param {string} token - JWT token
+     * @returns {Promise<Object>} Access token payload
+     */
+    async verifyAccessToken(token) {
+        try {
+            const secret = this.accessSecret();
+            const { payload } = await jwtVerify(token, secret, { algorithms: ['HS256'], issuer: 'swopblog', audience: 'swopblog-web' });
+
+            if (payload.type !== 'access' || typeof payload.sid !== 'string' || !payload.sid) {
+                throw new UnauthorizedError('Invalid token type');
+            }
+
+            return payload;
+        } catch (error) {
+            throw new UnauthorizedError('Invalid or expired access token');
+        }
+    }
+
+    /**
+     * Verify and consume refresh token (implements rotation)
+     * @param {string} token - Refresh token
+     * @returns {Promise<{userId: number, sessionId: string}>} Token data
+     */
+    async verifyRefreshToken(token) {
+        const tokenHash = await hashToken(token);
+
+        const result = await this.db.prepare(
+            `SELECT rt.*, s.user_id FROM refresh_tokens rt
+             JOIN sessions s ON rt.session_id = s.id WHERE rt.token_hash = ?`
+        ).bind(tokenHash).first();
+        if (!result) throw new UnauthorizedError('Invalid refresh token');
+        if (result.revoked_at) {
+            await this.revokeSession(result.session_id);
+            throw new UnauthorizedError('Refresh token reused - session revoked');
+        }
+        // SQLite evaluates expiry in UTC and consumes only an unexpired, unused
+        // token in a live session. Exactly one racing request can change this row.
+        const consumed = await this.db.prepare(
+            `UPDATE refresh_tokens SET revoked_at = datetime('now')
+             WHERE token_hash = ? AND revoked_at IS NULL
+             AND julianday(expires_at) > julianday('now')
+             AND EXISTS (SELECT 1 FROM sessions WHERE id = refresh_tokens.session_id)`
+        ).bind(tokenHash).run();
+        if (consumed.meta.changes !== 1) {
+            const token = await this.db.prepare('SELECT revoked_at FROM refresh_tokens WHERE token_hash = ?')
+                .bind(tokenHash).first();
+            if (token?.revoked_at) await this.revokeSession(result.session_id);
+            throw new UnauthorizedError('Refresh token expired, reused, or session revoked');
+        }
+
+        return {
+            userId: result.user_id,
+            sessionId: result.session_id,
+        };
+    }
+
+    /**
+     * Revoke a specific session (and all its refresh tokens)
+     * @param {string} sessionId - Session ID
+     * @returns {Promise<void>}
+     */
+    async revokeSession(sessionId) {
+        await this.db
+            .prepare('UPDATE refresh_tokens SET revoked_at = datetime(\'now\') WHERE session_id = ?')
+            .bind(sessionId)
+            .run();
+
+        await this.db
+            .prepare('DELETE FROM sessions WHERE id = ?')
+            .bind(sessionId)
+            .run();
+    }
+
+    /**
+     * Revoke all sessions for a user
+     * @param {number} userId - User ID
+     * @param {string} [exceptSessionId] - Session ID to keep active
+     * @returns {Promise<void>}
+     */
+    async revokeAllSessions(userId, exceptSessionId) {
+        if (exceptSessionId) {
+            // Revoke all except current session
+            await this.db
+                .prepare(
+                    `UPDATE refresh_tokens 
+           SET revoked_at = datetime('now') 
+           WHERE session_id IN (
+             SELECT id FROM sessions WHERE user_id = ? AND id != ?
+           )`
+                )
+                .bind(userId, exceptSessionId)
+                .run();
+
+            await this.db
+                .prepare('DELETE FROM sessions WHERE user_id = ? AND id != ?')
+                .bind(userId, exceptSessionId)
+                .run();
+        } else {
+            // Revoke all sessions
+            await this.db
+                .prepare(
+                    `UPDATE refresh_tokens 
+           SET revoked_at = datetime('now') 
+           WHERE session_id IN (
+             SELECT id FROM sessions WHERE user_id = ?
+           )`
+                )
+                .bind(userId)
+                .run();
+
+            await this.db
+                .prepare('DELETE FROM sessions WHERE user_id = ?')
+                .bind(userId)
+                .run();
+        }
+    }
+
+    /**
+     * Generate email verification token
+     * @param {number} userId - User ID
+     * @returns {Promise<string>} Verification token
+     */
+    async generateEmailVerificationToken(userId) {
+        const token = generateSecureToken(32);
+        const tokenHash = await hashToken(token);
+        const expiresAt = addSeconds(config.EMAIL_VERIFICATION_EXPIRY);
+
+        await this.db
+            .prepare(
+                'INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)'
+            )
+            .bind(userId, tokenHash, formatDateForDB(expiresAt))
+            .run();
+
+        return token;
+    }
+
+    /**
+     * Generate password reset token
+     * @param {number} userId - User ID
+     * @returns {Promise<string>} Reset token
+     */
+    async generatePasswordResetToken(userId) {
+        const token = generateSecureToken(32);
+        const tokenHash = await hashToken(token);
+        const expiresAt = addSeconds(config.PASSWORD_RESET_EXPIRY);
+
+        // Invalidate any existing reset tokens for this user
+        await this.db
+            .prepare('UPDATE password_reset_tokens SET used_at = datetime(\'now\') WHERE user_id = ? AND used_at IS NULL')
+            .bind(userId)
+            .run();
+
+        await this.db
+            .prepare(
+                'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)'
+            )
+            .bind(userId, tokenHash, formatDateForDB(expiresAt))
+            .run();
+
+        return token;
+    }
+}

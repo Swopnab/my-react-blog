@@ -3,11 +3,21 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test": "node tests/browser.cjs",
-    "start": "python3 -m http.server 8000 --bind 127.0.0.1",
-    "build": "node scripts/build.cjs"
+    "test": "node --test api/tests/*.test.js && node tests/browser.cjs && node tests/shared-browser.cjs",
+    "start": "node api/server.js",
+    "build": "node scripts/build.cjs",
+    "demo": "python3 -m http.server 8000 --bind 127.0.0.1",
+    "role": "node api/role.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0"
+  },
+  "description": "Shared blogging app with JWT sessions, role-based moderation and SQLite persistence",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "jose": "^5.2.0"
   }
 }
